@@ -17,5 +17,7 @@ import { UsersModule } from '../users/users.module';
   ],
   providers: [AuthService, JwtStrategy],
   controllers: [AuthController],
+  exports: [AuthService], // Export AuthService for use in other modules
+  // This allows other modules to use the AuthService for authentication purposes.
 })
 export class AuthModule {}
