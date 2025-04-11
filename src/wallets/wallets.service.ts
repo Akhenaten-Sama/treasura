@@ -12,8 +12,8 @@ export class WalletsService {
     private readonly usersService: UsersService,
   ) {}
 
-  async create(userId: string, balance: number = 0): Promise<Wallet> {
-    const user = await this.usersService.findOneById(userId);
+  async create(email: string, balance: number = 0): Promise<Wallet> {
+    const user = await this.usersService.findByEmail(email);
     const wallet = this.walletRepository.create({
       user,
       balance,
@@ -26,17 +26,27 @@ export class WalletsService {
   }
 
   async updateBalance(id: string, amount: number): Promise<Wallet> {
+    // Validate that amount is a valid number
+    if (isNaN(amount) || typeof amount !== 'number') {
+      throw new BadRequestException('Amount must be a valid number');
+    }
+
     const wallet = await this.walletRepository.findOne({ where: { id } });
 
     if (!wallet) {
       throw new NotFoundException(`Wallet with ID ${id} not found`);
     }
 
-    if (wallet.balance + amount < 0) {
+    // Convert balance to a number to ensure proper arithmetic
+    const currentBalance = parseFloat(wallet.balance.toString());
+    const newBalance = currentBalance + amount;
+
+    if (newBalance < 0) {
       throw new BadRequestException('Insufficient balance');
     }
 
-    wallet.balance += amount;
+    // Ensure proper numeric format
+    wallet.balance = parseFloat(newBalance.toFixed(2));
     return this.walletRepository.save(wallet);
   }
 
