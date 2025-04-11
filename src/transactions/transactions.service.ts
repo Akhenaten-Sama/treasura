@@ -33,11 +33,19 @@ export class TransactionsService {
       }
       const destWallet = await this.walletsService.findOne(dto.toWalletId);
       if (!destWallet) throw new NotFoundException('Destination wallet not found');
+    const sourceBalance =   parseFloat(sourceWallet.balance.toString())
+    const destBalance = parseFloat(destWallet.balance.toString())
+    
 
-      sourceWallet.balance -= dto.amount;
-      destWallet.balance += dto.amount;
+    const newSourceBalance = sourceBalance - dto.amount
+    const newDestBalance = destBalance + dto.amount
+    sourceWallet.balance = parseFloat(newSourceBalance.toFixed(2));
+    destWallet.balance = parseFloat(newDestBalance.toFixed(2))
+
+
       await this.walletsService.save(sourceWallet);
       await this.walletsService.save(destWallet);
+
     } else {
       const factor = dto.type === TransactionType.DEPOSIT ? 1 : -1;
       sourceWallet.balance += factor * dto.amount;

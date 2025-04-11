@@ -14,5 +14,6 @@ import { AuthModule } from '../auth/auth.module';
   ],
   providers: [WalletsService],
   controllers: [WalletsController],
+  exports: [WalletsService], // Export WalletsService for use in other modules
 })
 export class WalletsModule {}
