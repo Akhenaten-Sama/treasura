@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { Wallet } from './wallets.entity';
 import { UsersService } from '../users/users.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
-import { UpdateBalanceDto } from './dto/update-balance.dto';
+import { UpdateBalanceDto } from './update-balance.dto';
 
 @Injectable()
 export class WalletsService {

@@ -1,7 +1,7 @@
 import { Controller, Post, Param, Get, Body } from '@nestjs/common';
 import { WalletsService } from './wallets.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
-import { UpdateBalanceDto } from './dto/update-balance.dto';
+import { UpdateBalanceDto } from './update-balance.dto';
 import { AuthService } from '../auth/auth.service';
 import { ApiResponse } from '@nestjs/swagger';
 
