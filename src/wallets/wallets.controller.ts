@@ -15,13 +15,13 @@ export class WalletsController {
   @Post('create')
   @ApiResponse({ status: 201, description: 'Wallet successfully created.' })
   async createWallet(@Body() createWalletDto: CreateWalletDto) {
-    return this.walletsService.createWallet(createWalletDto.userId);
+    return this.walletsService.create(createWalletDto.userId);
   }
 
   @Get(':id')
   @ApiResponse({ status: 200, description: 'Get wallet by ID.' })
   async getWallet(@Param('id') id: string) {
-    return this.walletsService.getWalletById(id);
+    return this.walletsService.findOne(id);
   }
 
   @Post(':id/balance')

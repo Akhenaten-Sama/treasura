@@ -1,42 +1,48 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Wallet } from './wallets.entity';
+import { Wallet } from '../wallets/wallets.entity';
 import { UsersService } from '../users/users.service';
-import { CreateWalletDto } from './dto/create-wallet.dto';
-import { UpdateBalanceDto } from './update-balance.dto';
 
 @Injectable()
 export class WalletsService {
   constructor(
     @InjectRepository(Wallet)
-    private walletsRepository: Repository<Wallet>,
-    private usersService: UsersService,
+    private readonly walletRepository: Repository<Wallet>,
+    private readonly usersService: UsersService,
   ) {}
 
-  async createWallet(userId: string): Promise<Wallet> {
-    const user = await this.usersService.findById(userId);
-    if (!user) {
-      throw new Error('User not found');
-    }
-    const wallet = this.walletsRepository.create({ userId });
-    return this.walletsRepository.save(wallet);
+  async create(userId: string, balance: number = 0): Promise<Wallet> {
+    const user = await this.usersService.findOneById(userId);
+    const wallet = this.walletRepository.create({
+      user,
+      balance,
+    });
+    return this.walletRepository.save(wallet);
   }
 
-  async getWalletById(id: string): Promise<Wallet> {
-    const wallet = await this.walletsRepository.findOne({ where: { id } });
-    if (!wallet) {
-      throw new Error('Wallet not found');
-    }
-    return wallet;
+  async findOne(id: string): Promise<Wallet> {
+    return this.walletRepository.findOneOrFail({ where: { id }, relations: ['user'] });
   }
 
-  async updateBalance(walletId: string, amount: number): Promise<Wallet> {
-    const wallet = await this.getWalletById(walletId);
+  async updateBalance(id: string, amount: number): Promise<Wallet> {
+    const wallet = await this.walletRepository.findOne({ where: { id } });
+
     if (!wallet) {
-      throw new Error('Wallet not found');
+      throw new NotFoundException(`Wallet with ID ${id} not found`);
     }
+
+    if (wallet.balance + amount < 0) {
+      throw new BadRequestException('Insufficient balance');
+    }
+
     wallet.balance += amount;
-    return this.walletsRepository.save(wallet);
+    return this.walletRepository.save(wallet);
   }
+
+  async save(wallet: Wallet): Promise<Wallet> {
+    // Implement the logic to save the wallet, e.g., using a repository
+    return await this.walletRepository.save(wallet);
+  }
+  // Other methods to deposit, withdraw, etc.
 }

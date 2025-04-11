@@ -1,22 +1,26 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { BullModule } from '@nestjs/bull';
-
+import { Transaction } from './transaction.entity';
 import { TransactionsService } from './transactions.service';
 import { TransactionsController } from './transactions.controller';
-import { Transaction } from './entities/transaction.entity';
-import { Wallet } from '../wallet/entities/wallet.entity';
-import { User } from '../users/entities/user.entity';
+import { WalletsModule } from '../wallets/wallets.module';
+import { BullModule } from '@nestjs/bull';
 import { TransferProcessor } from './transfer.processor';
+import { BullConfigService } from '../config/bull.config';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Transaction, Wallet, User]),
+    TypeOrmModule.forFeature([Transaction]),
+    WalletsModule,
+    BullModule.forRootAsync({
+      useClass: BullConfigService,
+    }),
     BullModule.registerQueue({
-      name: 'transfer-queue',
+      name: 'transactionQueue',
     }),
   ],
-  controllers: [TransactionsController],
   providers: [TransactionsService, TransferProcessor],
+  controllers: [TransactionsController],
+  exports: [TransactionsService],
 })
 export class TransactionsModule {}
