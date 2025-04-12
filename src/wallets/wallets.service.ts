@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Wallet } from '../wallets/wallets.entity';
 import { UsersService } from '../users/users.service';
 
@@ -10,6 +10,7 @@ export class WalletsService {
     @InjectRepository(Wallet)
     private readonly walletRepository: Repository<Wallet>,
     private readonly usersService: UsersService,
+    private readonly dataSource: DataSource, // Inject DataSource for transactions
   ) {}
 
   async create(email: string, balance: number = 0): Promise<Wallet> {
@@ -31,23 +32,45 @@ export class WalletsService {
       throw new BadRequestException('Amount must be a valid number');
     }
 
-    const wallet = await this.walletRepository.findOne({ where: { id } });
+    // Start a transaction
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    if (!wallet) {
-      throw new NotFoundException(`Wallet with ID ${id} not found`);
+    try {
+      // Lock the wallet row for update
+      const wallet = await queryRunner.manager.findOne(Wallet, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!wallet) {
+        throw new NotFoundException(`Wallet with ID ${id} not found`);
+      }
+
+      // Perform balance update
+      const currentBalance = parseFloat(wallet.balance.toString());
+      const newBalance = currentBalance + amount;
+      
+//prevent overdraft
+      if (newBalance < 0) {
+        throw new BadRequestException('Insufficient balance');
+      }
+
+      wallet.balance = parseFloat(newBalance.toFixed(2));
+      await queryRunner.manager.save(wallet);
+
+      // Commit the transaction
+      await queryRunner.commitTransaction();
+      return wallet;
+    } catch (error) {
+      // Rollback the transaction in case of an error
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      // Release the query runner
+      await queryRunner.release();
     }
-
-    // Convert balance to a number to ensure proper arithmetic
-    const currentBalance = parseFloat(wallet.balance.toString());
-    const newBalance = currentBalance + amount;
-
-    if (newBalance < 0) {
-      throw new BadRequestException('Insufficient balance');
-    }
-
-    // Ensure proper numeric format
-    wallet.balance = parseFloat(newBalance.toFixed(2));
-    return this.walletRepository.save(wallet);
   }
 
   async save(wallet: Wallet): Promise<Wallet> {

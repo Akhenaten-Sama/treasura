@@ -1,9 +1,10 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Transaction, TransactionType, TransactionStatus } from './transaction.entity';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { WalletsService } from '../wallets/wallets.service';
+import { Wallet } from '../wallets/wallets.entity';
 
 @Injectable()
 export class TransactionsService {
@@ -11,28 +12,48 @@ export class TransactionsService {
     @InjectRepository(Transaction)
     private readonly txRepo: Repository<Transaction>,
     private walletsService: WalletsService,
+    private dataSource: DataSource,
   ) {}
 
   // Create a new transaction
   async createTransaction(dto: CreateTransactionDto): Promise<Transaction> {
-    const existing = await this.txRepo.findOne({ where: { id: dto.transactionId } });
-    if (existing) {
-      throw new ConflictException('Duplicate transaction ID');
-    }
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    const sourceWallet = await this.walletsService.findOne(dto.walletId);
-    if (!sourceWallet) throw new NotFoundException('Source wallet not found');
+    try {
+      const sourceWallet = await queryRunner.manager.findOne(Wallet, {
+        where: { id: dto.walletId },
+        lock: { mode: 'pessimistic_write' },
+      });
 
-    if (dto.type === TransactionType.WITHDRAWAL && sourceWallet.balance < dto.amount) {
-      throw new ConflictException('Insufficient funds');
-    }
-
-    if (dto.type === TransactionType.TRANSFER) {
-      if (!dto.toWalletId) {
-        throw new NotFoundException('Destination wallet ID is required');
+      if (!sourceWallet) {
+        throw new NotFoundException('Source wallet not found');
       }
-      const destWallet = await this.walletsService.findOne(dto.toWalletId);
-      if (!destWallet) throw new NotFoundException('Destination wallet not found');
+
+      if (dto.type === TransactionType.WITHDRAWAL && sourceWallet.balance < dto.amount) {
+        throw new ConflictException('Insufficient funds');
+      }
+
+      if (dto.type === TransactionType.TRANSFER) {
+        if (!dto.toWalletId) {
+          throw new BadRequestException('Destination wallet ID is required');
+        }
+
+        const destWallet = await queryRunner.manager.findOne(Wallet, {
+          where: { id: dto.toWalletId },
+          lock: { mode: 'pessimistic_write' },
+        });
+
+        if (!destWallet) {
+          throw new NotFoundException('Destination wallet not found');
+        }
+
+        if (sourceWallet.balance < dto.amount) {
+          throw new ConflictException('Insufficient funds for transfer');
+        }
+
+        // Perform the transfer
     const sourceBalance =   parseFloat(sourceWallet.balance.toString())
     const destBalance = parseFloat(destWallet.balance.toString())
     
@@ -43,16 +64,38 @@ export class TransactionsService {
     destWallet.balance = parseFloat(newDestBalance.toFixed(2))
 
 
-      await this.walletsService.save(sourceWallet);
-      await this.walletsService.save(destWallet);
+        await queryRunner.manager.save(sourceWallet);
+        await queryRunner.manager.save(destWallet);
+      } else if (dto.type === TransactionType.WITHDRAWAL) {
+        // Handle withdrawal
+        sourceWallet.balance -= dto.amount;
+        await queryRunner.manager.save(sourceWallet);
+      } else if (dto.type === TransactionType.DEPOSIT) {
+        // Handle deposit
+        sourceWallet.balance += dto.amount;
+        await queryRunner.manager.save(sourceWallet);
+      } else {
+        throw new BadRequestException('Invalid transaction type');
+      }
 
-    } else {
-      const factor = dto.type === TransactionType.DEPOSIT ? 1 : -1;
-      sourceWallet.balance += factor * dto.amount;
-      await this.walletsService.save(sourceWallet);
+      // Save the transaction
+      const transaction = this.txRepo.create({
+        ...dto,
+        status: TransactionStatus.SUCCESS,
+      });
+      await queryRunner.manager.save(transaction);
+
+      // Commit the transaction
+      await queryRunner.commitTransaction();
+      return transaction;
+    } catch (error) {
+      // Rollback the transaction in case of an error
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      // Release the query runner
+      await queryRunner.release();
     }
-
-    return this.txRepo.save({ ...dto, status: TransactionStatus.SUCCESS });
   }
 
   // Find a transaction by its ID
