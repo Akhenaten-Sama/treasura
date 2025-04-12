@@ -1,8 +1,8 @@
-import { Controller, Post, Body, Param, Get } from '@nestjs/common';
+import { Controller, Post, Body, Param, Get, Query } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { Transaction } from './transaction.entity';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 
 @ApiTags('transactions') // Group the endpoints under the "transactions" tag in Swagger
 @Controller('transactions')
@@ -47,5 +47,37 @@ export class TransactionsController {
     return this.transactionsService.findById(id);
   }
 
+  @Get('wallet/:walletId')
+  @ApiOperation({ summary: 'Get paginated transactions for a wallet' })
+  @ApiParam({
+    name: 'walletId',
+    description: 'The ID of the wallet to retrieve transactions for',
+    type: String,
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiQuery({
+    name: 'page',
+    description: 'The page number to retrieve',
+    type: Number,
+    required: false,
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    description: 'The number of transactions per page',
+    type: Number,
+    required: false,
+    example: 10,
+  })
+  @ApiResponse({ status: 200, description: 'Paginated list of transactions.' })
+  @ApiResponse({ status: 404, description: 'Wallet not found.' })
+  async getTransactionsForWallet(
+    @Param('walletId') walletId: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    return this.transactionsService.getTransactionsForWallet(walletId, page, limit);
+  }
+  
   // Other endpoints for transaction management...
 }

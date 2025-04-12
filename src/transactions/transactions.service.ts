@@ -31,5 +31,22 @@ export class TransactionsService {
     return transaction;
   }
 
+  async getTransactionsForWallet(walletId: string, page: number, limit: number): Promise<{ data: Transaction[]; total: number }> {
+    const offset = (page - 1) * limit;
+
+    const [data, total] = await this.txRepo.findAndCount({
+      where: [
+        { fromWallet: { id: walletId } }, // Outgoing transactions
+        { toWallet: { id: walletId } },  // Incoming transactions
+      ],
+      relations: ['fromWallet', 'toWallet'],
+      order: { createdAt: 'DESC' }, // Ensure 'createdAt' exists in the Transaction entity
+      skip: offset,
+      take: limit,
+    });
+
+    return { data, total };
+  }
+
   // Other methods for transaction management...
 }

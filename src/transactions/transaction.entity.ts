@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
 import { Wallet } from '../wallets/wallets.entity';
 
 export enum TransactionStatus {
@@ -35,5 +35,7 @@ export class Transaction {
   @Column({ type: 'enum', enum: TransactionType, default: TransactionType.TRANSFER })
   type: TransactionType;
 
+  @CreateDateColumn()
+  createdAt: Date;
   // You can also include timestamps here if needed
 }
