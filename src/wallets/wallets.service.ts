@@ -5,6 +5,7 @@ import { Wallet } from '../wallets/wallets.entity';
 import { UsersService } from '../users/users.service';
 import { TransactionType, TransactionStatus } from '../transactions/transaction.entity';
 import { TransactionsService } from '../transactions/transactions.service';
+import { validate as isUuid } from 'uuid';
 
 @Injectable()
 export class WalletsService {
@@ -16,6 +17,13 @@ export class WalletsService {
     private readonly transactionsService: TransactionsService, // Inject TransactionsService
   ) {}
 
+  // Helper method to validate UUID
+  private validateUUID(id: string, fieldName: string): void {
+    if (!isUuid(id)) {
+      throw new BadRequestException(`${fieldName} must be a valid UUID`);
+    }
+  }
+
   async create(email: string, balance: number = 0): Promise<Wallet> {
     const user = await this.usersService.findByEmail(email);
     const wallet = this.walletRepository.create({
@@ -26,10 +34,17 @@ export class WalletsService {
   }
 
   async findOne(id: string): Promise<Wallet> {
-    return this.walletRepository.findOneOrFail({ where: { id }, relations: ['user'] });
+    this.validateUUID(id, 'Wallet ID'); // Validate UUID
+    const wallet = await this.walletRepository.findOne({ where: { id }, relations: ['user'] });
+    if (!wallet) {
+      throw new NotFoundException(`Wallet with ID ${id} not found`);
+    }
+    return wallet;
   }
 
   async updateBalance(id: string, amount: number): Promise<Wallet> {
+    this.validateUUID(id, 'Wallet ID'); // Validate UUID
+
     // Validate that amount is a valid number
     if (isNaN(amount) || typeof amount !== 'number') {
       throw new BadRequestException('Amount must be a valid number');
@@ -54,8 +69,8 @@ export class WalletsService {
       // Perform balance update
       const currentBalance = parseFloat(wallet.balance.toString());
       const newBalance = currentBalance + amount;
-      
-//prevent overdraft
+
+      // Prevent overdraft
       if (newBalance < 0) {
         throw new BadRequestException('Insufficient balance');
       }
@@ -77,6 +92,9 @@ export class WalletsService {
   }
 
   async transfer(fromWalletId: string, toWalletId: string, amount: number): Promise<void> {
+    this.validateUUID(fromWalletId, 'Source Wallet ID'); // Validate UUID
+    this.validateUUID(toWalletId, 'Destination Wallet ID'); // Validate UUID
+
     if (amount <= 0) {
       throw new BadRequestException('Transfer amount must be greater than zero');
     }
@@ -141,8 +159,6 @@ export class WalletsService {
   }
 
   async save(wallet: Wallet): Promise<Wallet> {
-    // Implement the logic to save the wallet, e.g., using a repository
     return await this.walletRepository.save(wallet);
   }
-  // Other methods to deposit, withdraw, etc.
 }

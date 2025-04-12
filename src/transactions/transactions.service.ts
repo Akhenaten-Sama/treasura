@@ -5,12 +5,16 @@ import { Transaction, TransactionType, TransactionStatus } from './transaction.e
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { WalletsService } from '../wallets/wallets.service';
 import { Wallet } from '../wallets/wallets.entity';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 
 @Injectable()
 export class TransactionsService {
   constructor(
     @InjectRepository(Transaction)
     private readonly txRepo: Repository<Transaction>,
+    @InjectQueue('transactionQueue')
+    private readonly transactionQueue: Queue,
   ) {}
 
   async createTransaction(dto: CreateTransactionDto): Promise<Transaction> {
@@ -48,5 +52,16 @@ export class TransactionsService {
     return { data, total };
   }
 
+  async queueTransfer(fromWalletId: string, toWalletId: string, amount: number): Promise<void> {
+    await this.transactionQueue.add('transfer', { fromWalletId, toWalletId, amount });
+  }
+
+  async queueWithdraw(walletId: string, amount: number): Promise<void> {
+    await this.transactionQueue.add('withdraw', { walletId, amount });
+  }
+
+  async queueDeposit(walletId: string, amount: number): Promise<void> {
+    await this.transactionQueue.add('deposit', { walletId, amount });
+  }
   // Other methods for transaction management...
 }

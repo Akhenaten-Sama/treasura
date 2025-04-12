@@ -11,10 +11,7 @@ import { BullConfigService } from '../config/bull.config';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Transaction]),
-    forwardRef(()=>WalletsModule),
-    BullModule.forRootAsync({
-      useClass: BullConfigService,
-    }),
+    forwardRef(() => WalletsModule),
     BullModule.registerQueue({
       name: 'transactionQueue',
     }),

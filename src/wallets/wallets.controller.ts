@@ -2,6 +2,7 @@ import { Controller, Post, Param, Get, Body } from '@nestjs/common';
 import { WalletsService } from './wallets.service';
 import { AuthService } from '../auth/auth.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
+import { TransactionsService } from '../transactions/transactions.service'; // Import TransactionsService
 import { UpdateBalanceDto } from './update-balance.dto';
 import { TransferDto } from '../transactions/dto/transfer.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
@@ -12,6 +13,8 @@ export class WalletsController {
   constructor(
     private readonly walletsService: WalletsService,
     private readonly authService: AuthService,
+    private readonly transactionsService: TransactionsService, // Inject TransactionsService
+  
   ) {}
 
   @Post('create')
@@ -132,7 +135,8 @@ export class WalletsController {
     @Param('id') id: string,
     @Body() updateBalanceDto: UpdateBalanceDto,
   ) {
-    return this.walletsService.updateBalance(id, -updateBalanceDto.amount); // Negative amount for withdrawal
+    await this.transactionsService.queueWithdraw(id, updateBalanceDto.amount);
+    return { message: 'Withdrawal queued successfully' };
   }
 
   @Post(':fromWalletId/transfer/:toWalletId')
@@ -169,6 +173,7 @@ export class WalletsController {
     @Param('toWalletId') toWalletId: string,
     @Body() transferDto: TransferDto,
   ) {
-    return this.walletsService.transfer(fromWalletId, toWalletId, transferDto.amount);
+    await this.transactionsService.queueTransfer(fromWalletId, toWalletId, transferDto.amount);
+    return { message: 'Transfer queued successfully' };
   }
 }
