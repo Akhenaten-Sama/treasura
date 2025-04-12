@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Transaction } from './transaction.entity';
 import { TransactionsService } from './transactions.service';
@@ -11,7 +11,7 @@ import { BullConfigService } from '../config/bull.config';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Transaction]),
-    WalletsModule,
+    forwardRef(()=>WalletsModule),
     BullModule.forRootAsync({
       useClass: BullConfigService,
     }),

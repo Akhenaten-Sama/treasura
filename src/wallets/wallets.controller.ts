@@ -3,6 +3,7 @@ import { WalletsService } from './wallets.service';
 import { AuthService } from '../auth/auth.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { UpdateBalanceDto } from './update-balance.dto';
+import { TransferDto } from '../transactions/dto/transfer.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
 
 @ApiTags('wallets') // Group the endpoints under the "wallets" tag in Swagger
@@ -132,5 +133,42 @@ export class WalletsController {
     @Body() updateBalanceDto: UpdateBalanceDto,
   ) {
     return this.walletsService.updateBalance(id, -updateBalanceDto.amount); // Negative amount for withdrawal
+  }
+
+  @Post(':fromWalletId/transfer/:toWalletId')
+  @ApiOperation({ summary: 'Transfer money between wallets' })
+  @ApiParam({
+    name: 'fromWalletId',
+    description: 'The ID of the wallet to transfer from',
+    type: String,
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiParam({
+    name: 'toWalletId',
+    description: 'The ID of the wallet to transfer to',
+    type: String,
+    example: '456e7890-e12b-34d5-a678-426614174111',
+  })
+  @ApiBody({
+    description: 'The amount to transfer',
+    type: TransferDto,
+    examples: {
+      example1: {
+        summary: 'Example transfer',
+        value: {
+          amount: 50.0,
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Transfer successful.' })
+  @ApiResponse({ status: 400, description: 'Insufficient funds or invalid input.' })
+  @ApiResponse({ status: 404, description: 'Wallet not found.' })
+  async transfer(
+    @Param('fromWalletId') fromWalletId: string,
+    @Param('toWalletId') toWalletId: string,
+    @Body() transferDto: TransferDto,
+  ) {
+    return this.walletsService.transfer(fromWalletId, toWalletId, transferDto.amount);
   }
 }
