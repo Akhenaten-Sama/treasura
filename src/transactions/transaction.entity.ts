@@ -18,11 +18,11 @@ export class Transaction {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Wallet)
+  @ManyToOne(() => Wallet, { nullable: true }) // Allow null for optional fields
   @JoinColumn({ name: 'from_wallet_id' })
   fromWallet: Wallet;
 
-  @ManyToOne(() => Wallet)
+  @ManyToOne(() => Wallet, { nullable: true }) // Allow null for optional fields
   @JoinColumn({ name: 'to_wallet_id' })
   toWallet: Wallet;
 
@@ -37,5 +37,7 @@ export class Transaction {
 
   @CreateDateColumn()
   createdAt: Date;
-  // You can also include timestamps here if needed
+
+  @Column({ unique: true })
+  transactionId: string; // Unique identifier for the transaction
 }

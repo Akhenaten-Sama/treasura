@@ -130,20 +130,24 @@ export class WalletsService {
       }
 
       // Perform the transfer
-      sourceWallet.balance = parseFloat((sourceWallet.balance - amount).toFixed(2));
-      destWallet.balance = parseFloat((destWallet.balance + amount).toFixed(2));
+      const sourceBalance =   parseFloat(sourceWallet.balance.toString())
+      const destBalance = parseFloat(destWallet.balance.toString())
+
+
+      sourceWallet.balance = parseFloat((sourceBalance - amount).toFixed(2));
+      destWallet.balance = parseFloat((destBalance + amount).toFixed(2));
 
       await queryRunner.manager.save(sourceWallet);
       await queryRunner.manager.save(destWallet);
 
       // Create transaction records for both wallets
-      await this.transactionsService.createTransaction({
-        walletId: fromWalletId,
-        toWalletId,
-        amount,
-        type: TransactionType.TRANSFER,
-        transactionId: this.generateTransactionId(),
-      });
+    //   await this.transactionsService.createTransaction({
+    //     walletId: fromWalletId,
+    //     toWalletId,
+    //     amount,
+    //     type: TransactionType.TRANSFER,
+    //     transactionId: this.generateTransactionId(),
+    //   });
 
       await queryRunner.commitTransaction();
     } catch (error) {

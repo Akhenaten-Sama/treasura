@@ -14,6 +14,7 @@ import { Queue } from 'bull';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration], validationSchema }),
+    UsersModule,
     DatabaseModule,
     WalletsModule,
     TransactionsModule,

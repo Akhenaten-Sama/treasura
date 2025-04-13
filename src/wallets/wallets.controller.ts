@@ -4,7 +4,7 @@ import { AuthService } from '../auth/auth.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { TransactionsService } from '../transactions/transactions.service'; // Import TransactionsService
 import { UpdateBalanceDto } from './update-balance.dto';
-import { TransferDto } from '../transactions/dto/transfer.dto';
+import { TransferDto } from './dto/transfer.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
 
 @ApiTags('wallets') // Group the endpoints under the "wallets" tag in Swagger
@@ -50,34 +50,34 @@ export class WalletsController {
     return this.walletsService.findOne(id);
   }
 
-  @Post(':id/balance')
-  @ApiOperation({ summary: 'Update wallet balance' }) // Describe the purpose of the endpoint
-  @ApiParam({
-    name: 'id',
-    description: 'The ID of the wallet to update',
-    type: String,
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @ApiBody({
-    description: 'The data needed to update the wallet balance',
-    type: UpdateBalanceDto,
-    examples: {
-      example1: {
-        summary: 'Example balance update',
-        value: {
-          amount: 100.50,
-        },
-      },
-    },
-  })
-  @ApiResponse({ status: 200, description: 'Balance updated successfully.' })
-  @ApiResponse({ status: 404, description: 'Wallet not found.' })
-  async updateBalance(
-    @Param('id') id: string,
-    @Body() updateBalanceDto: UpdateBalanceDto,
-  ) {
-    return this.walletsService.updateBalance(id, updateBalanceDto.amount);
-  }
+//   @Post(':id/balance')
+//   @ApiOperation({ summary: 'Update wallet balance' }) // Describe the purpose of the endpoint
+//   @ApiParam({
+//     name: 'id',
+//     description: 'The ID of the wallet to update',
+//     type: String,
+//     example: '123e4567-e89b-12d3-a456-426614174000',
+//   })
+//   @ApiBody({
+//     description: 'The data needed to update the wallet balance',
+//     type: UpdateBalanceDto,
+//     examples: {
+//       example1: {
+//         summary: 'Example balance update',
+//         value: {
+//           amount: 100.50,
+//         },
+//       },
+//     },
+//   })
+//   @ApiResponse({ status: 200, description: 'Balance updated successfully.' })
+//   @ApiResponse({ status: 404, description: 'Wallet not found.' })
+//   async updateBalance(
+//     @Param('id') id: string,
+//     @Body() updateBalanceDto: UpdateBalanceDto,
+//   ) {
+//     return this.walletsService.updateBalance(id, updateBalanceDto.amount);
+//   }
 
   @Post(':id/deposit')
   @ApiOperation({ summary: 'Deposit money into a wallet' }) // Describe the purpose of the endpoint
@@ -105,8 +105,10 @@ export class WalletsController {
     @Param('id') id: string,
     @Body() updateBalanceDto: UpdateBalanceDto,
   ) {
-    return this.walletsService.updateBalance(id, updateBalanceDto.amount);
-  }
+    const response = await this.transactionsService.queueDeposit(id, updateBalanceDto.amount);
+     return { message: 'Deposit queued successfully', ...response };
+    }
+
 
   @Post(':id/withdraw')
   @ApiOperation({ summary: 'Withdraw money from a wallet' }) // Describe the purpose of the endpoint
@@ -173,7 +175,10 @@ export class WalletsController {
     @Param('toWalletId') toWalletId: string,
     @Body() transferDto: TransferDto,
   ) {
-   const response = await this.transactionsService.queueTransfer(fromWalletId, toWalletId, transferDto.amount);
+    
+    const   idempotencyKey = `key_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+   const response = await this.transactionsService.queueTransfer(fromWalletId, toWalletId, transferDto.amount, idempotencyKey);
     return { message: 'Transfer queued successfully', ...response };
   }
 }

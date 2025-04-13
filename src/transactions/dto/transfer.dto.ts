@@ -11,6 +11,7 @@ export class TransferDto {
   amount: number;
 
   @IsString()
+  @IsOptional()
   idempotencyKey: string;
 
   @IsOptional()

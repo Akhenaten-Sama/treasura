@@ -1,9 +1,10 @@
 import { IsUUID, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
-import { TransactionType } from '../transaction.entity';
+import { TransactionStatus, TransactionType } from '../transaction.entity';
 
 export class CreateTransactionDto {
+  @IsOptional()
   @IsUUID()
-  walletId: string;
+  fromWalletId?: string;
 
   @IsOptional()
   @IsUUID()
@@ -11,6 +12,9 @@ export class CreateTransactionDto {
 
   @IsNumber()
   amount: number;
+
+  @IsEnum(TransactionStatus)
+  status: TransactionStatus; // PENDING, SUCCESS, FAILED
 
   @IsEnum(TransactionType)
   type: TransactionType;

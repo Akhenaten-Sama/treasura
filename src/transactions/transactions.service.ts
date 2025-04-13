@@ -18,10 +18,33 @@ export class TransactionsService {
   ) {}
 
   async createTransaction(dto: CreateTransactionDto): Promise<Transaction> {
+    // Check for existing transaction with the same idempotencyKey
+    const existingTransaction = await this.txRepo.findOne({ where: { transactionId: dto.transactionId } });
+    if (existingTransaction) {
+      throw new ConflictException('Transaction with the same idempotencyKey already exists');
+    }
+
     const transaction = this.txRepo.create({
       ...dto,
-      status: TransactionStatus.SUCCESS,
     });
+
+    // Fetch and set the fromWallet if fromWalletId is provided
+    if (dto.fromWalletId) {
+      const fromWallet = await this.txRepo.manager.findOne(Wallet, { where: { id: dto.fromWalletId } });
+      if (!fromWallet) {
+        throw new NotFoundException(`Source wallet with ID ${dto.fromWalletId} not found`);
+      }
+      transaction.fromWallet = fromWallet;
+    }
+
+    // Fetch and set the toWallet if toWalletId is provided
+    if (dto.toWalletId) {
+      const toWallet = await this.txRepo.manager.findOne(Wallet, { where: { id: dto.toWalletId } });
+      if (!toWallet) {
+        throw new NotFoundException(`Destination wallet with ID ${dto.toWalletId} not found`);
+      }
+      transaction.toWallet = toWallet;
+    }
 
     return this.txRepo.save(transaction);
   }
@@ -52,8 +75,8 @@ export class TransactionsService {
     return { data, total };
   }
 
-async queueTransfer(fromWalletId: string, toWalletId: string, amount: number): Promise<{ jobId: string | number }> {
-    const job = await this.transactionQueue.add('transfer', { fromWalletId, toWalletId, amount });
+async queueTransfer(fromWalletId: string, toWalletId: string, amount: number,transactionId:string): Promise<{ jobId: string | number }> {
+    const job = await this.transactionQueue.add('transfer', { fromWalletId, toWalletId, amount,transactionId });
     return { jobId: job.id }; // job.id can be a string or a number
 }
 
