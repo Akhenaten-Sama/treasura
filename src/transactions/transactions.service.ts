@@ -7,6 +7,7 @@ import { WalletsService } from '../wallets/wallets.service';
 import { Wallet } from '../wallets/wallets.entity';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue, Job } from 'bull';
+import { RedisService } from '../cache/redis.service';
 
 @Injectable()
 export class TransactionsService {
@@ -15,6 +16,7 @@ export class TransactionsService {
     private readonly txRepo: Repository<Transaction>,
     @InjectQueue('transactionQueue')
     private readonly transactionQueue: Queue,
+    private readonly redisService: RedisService, // Inject RedisService
   ) {}
 
   async createTransaction(dto: CreateTransactionDto): Promise<Transaction> {
@@ -49,16 +51,42 @@ export class TransactionsService {
     return this.txRepo.save(transaction);
   }
 
-  // Find a transaction by its ID
+  // Find a transaction by its ID with caching
   async findById(id: string): Promise<Transaction> {
+    const cacheKey = `transaction:${id}`;
+
+    // Check Redis cache
+    const cachedTransaction = await this.redisService.get(cacheKey);
+    if (cachedTransaction) {
+      console.log(`Cache hit for transaction ID: ${id}`);
+      return JSON.parse(cachedTransaction);
+    }
+
+    // Fetch from database if not in cache
     const transaction = await this.txRepo.findOne({ where: { id } });
     if (!transaction) {
-      throw new Error(`Transaction with ID ${id} not found`);
+      throw new NotFoundException(`Transaction with ID ${id} not found`);
     }
+
+    // Cache the result
+    await this.redisService.set(cacheKey, JSON.stringify(transaction), 3600); // Cache for 1 hour
+    console.log(`Cache set for transaction ID: ${id}`);
+
     return transaction;
   }
 
+  // Get transactions for a wallet with caching
   async getTransactionsForWallet(walletId: string, page: number, limit: number): Promise<{ data: Transaction[]; total: number }> {
+    const cacheKey = `transactions:wallet:${walletId}:page:${page}:limit:${limit}`;
+
+    // Check Redis cache
+    const cachedTransactions = await this.redisService.get(cacheKey);
+    if (cachedTransactions) {
+      console.log(`Cache hit for wallet transactions: ${walletId}`);
+      return JSON.parse(cachedTransactions);
+    }
+
+    // Fetch from database if not in cache
     const offset = (page - 1) * limit;
 
     const [data, total] = await this.txRepo.findAndCount({
@@ -72,7 +100,13 @@ export class TransactionsService {
       take: limit,
     });
 
-    return { data, total };
+    const result = { data, total };
+
+    // Cache the result
+    await this.redisService.set(cacheKey, JSON.stringify(result), 3600); // Cache for 1 hour
+    console.log(`Cache set for wallet transactions: ${walletId}`);
+
+    return result;
   }
 
 async queueTransfer(fromWalletId: string, toWalletId: string, amount: number,transactionId:string): Promise<{ jobId: string | number }> {
