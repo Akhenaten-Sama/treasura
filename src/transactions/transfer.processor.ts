@@ -12,8 +12,8 @@ import { Job } from 'bull';
 export class TransferProcessor {
   constructor(
     @InjectQueue('transactionQueue') private readonly transactionQueue: Queue,
-    private readonly transactionsService: TransactionsService,  // <-- Inject the service here
     private readonly walletsService: WalletsService,
+    private readonly transactionsService: TransactionsService,
   ) {}
 
   // Process a transfer by adding it to the queue
@@ -23,28 +23,45 @@ export class TransferProcessor {
   }
 
   @Process('transfer')
-  async handleTransfer(job: Job) {
+  async handleTransfer(job: Job): Promise<any> {
     const { fromWalletId, toWalletId, amount } = job.data;
 
     try {
-      await this.walletsService.transfer(fromWalletId, toWalletId, amount);
-      console.log(`Transfer processed successfully: ${job.id}`);
+      const result = await this.walletsService.transfer(fromWalletId, toWalletId, amount);
+      
+      console.log(`Transfer processed successfully: ${job.id}`, result);
+      return { message: 'Transfer successful', result }; // This will be stored as `returnvalue`
     } catch (error) {
       console.error(`Failed to process transfer: ${job.id}`, error);
-      throw error; // Retry logic will be triggered
+      throw error; // This will mark the job as failed
     }
   }
 
   @Process('withdraw')
-  async handleWithdraw(job: Job) {
+  async handleWithdraw(job: Job): Promise<any> {
     const { walletId, amount } = job.data;
 
     try {
-      await this.walletsService.updateBalance(walletId, -amount);
+      const result = await this.walletsService.updateBalance(walletId, -amount);
       console.log(`Withdrawal processed successfully: ${job.id}`);
+      return { message: 'Withdrawal successful', result }; // This will be stored as `returnvalue`
     } catch (error) {
       console.error(`Failed to process withdrawal: ${job.id}`, error);
-      throw error; // Retry logic will be triggered
+      throw error; // This will mark the job as failed
+    }
+  }
+
+  @Process('deposit')
+  async handleDeposit(job: Job): Promise<any> {
+    const { walletId, amount } = job.data;
+
+    try {
+      const result = await this.walletsService.updateBalance(walletId, amount);
+      console.log(`Deposit processed successfully: ${job.id}`);
+      return { message: 'Deposit successful', result }; // This will be stored as `returnvalue`
+    } catch (error) {
+      console.error(`Failed to process deposit: ${job.id}`, error);
+      throw error; // This will mark the job as failed
     }
   }
 }

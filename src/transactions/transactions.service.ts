@@ -6,7 +6,7 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { WalletsService } from '../wallets/wallets.service';
 import { Wallet } from '../wallets/wallets.entity';
 import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
+import { Queue, Job } from 'bull';
 
 @Injectable()
 export class TransactionsService {
@@ -52,16 +52,38 @@ export class TransactionsService {
     return { data, total };
   }
 
-  async queueTransfer(fromWalletId: string, toWalletId: string, amount: number): Promise<void> {
-    await this.transactionQueue.add('transfer', { fromWalletId, toWalletId, amount });
+async queueTransfer(fromWalletId: string, toWalletId: string, amount: number): Promise<{ jobId: string | number }> {
+    const job = await this.transactionQueue.add('transfer', { fromWalletId, toWalletId, amount });
+    return { jobId: job.id }; // job.id can be a string or a number
+}
+
+  async queueWithdraw(walletId: string, amount: number): Promise<{ jobId: string | number }> {
+    
+const job = await this.transactionQueue.add('withdraw', { walletId, amount });
+return { jobId: job.id };  
+}
+
+  async queueDeposit(walletId: string, amount: number): Promise<{ jobId: string | number }> {
+   const job =  await this.transactionQueue.add('deposit', { walletId, amount });
+   return { jobId: job.id };
+}
+
+async getJobById(id: string): Promise<any> {
+  const job = await this.transactionQueue.getJob(id);
+  if (!job) {
+    throw new NotFoundException(`Job with ID ${id} not found`);
   }
 
-  async queueWithdraw(walletId: string, amount: number): Promise<void> {
-    await this.transactionQueue.add('withdraw', { walletId, amount });
-  }
-
-  async queueDeposit(walletId: string, amount: number): Promise<void> {
-    await this.transactionQueue.add('deposit', { walletId, amount });
-  }
+  return {
+    jobId: job.id,
+    type: job.name,
+    data: job.data,
+    attemptsMade: job.attemptsMade,
+    status: await job.getState(), 
+    result: await job.returnvalue, 
+    failedReason: job.failedReason, 
+   
+  };
+}
   // Other methods for transaction management...
 }

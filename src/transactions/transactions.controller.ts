@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Param, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, Param, Get, Query, NotFoundException } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { Transaction } from './transaction.entity';
@@ -77,6 +77,24 @@ export class TransactionsController {
     @Query('limit') limit: number = 10,
   ) {
     return this.transactionsService.getTransactionsForWallet(walletId, page, limit);
+  }
+
+  @Get('job/:id')
+  @ApiOperation({ summary: 'Get job status by ID' })
+  @ApiParam({
+    name: 'id',
+    description: 'The ID of the job to retrieve',
+    type: String,
+    example: 'job-id-123',
+  })
+  @ApiResponse({ status: 200, description: 'Job status retrieved successfully.' })
+  @ApiResponse({ status: 404, description: 'Job not found.' })
+  async getJobStatus(@Param('id') id: string): Promise<{ status: string }> {
+    const job = await this.transactionsService.getJobById(id);
+    if (!job) {
+      throw new NotFoundException(`Job with ID ${id} not found`);
+    }
+    return job
   }
   
   // Other endpoints for transaction management...

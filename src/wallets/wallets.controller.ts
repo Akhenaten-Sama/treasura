@@ -135,8 +135,8 @@ export class WalletsController {
     @Param('id') id: string,
     @Body() updateBalanceDto: UpdateBalanceDto,
   ) {
-    await this.transactionsService.queueWithdraw(id, updateBalanceDto.amount);
-    return { message: 'Withdrawal queued successfully' };
+   const response = await this.transactionsService.queueWithdraw(id, updateBalanceDto.amount);
+    return { message: 'Withdrawal queued successfully', ...response };
   }
 
   @Post(':fromWalletId/transfer/:toWalletId')
@@ -173,7 +173,7 @@ export class WalletsController {
     @Param('toWalletId') toWalletId: string,
     @Body() transferDto: TransferDto,
   ) {
-    await this.transactionsService.queueTransfer(fromWalletId, toWalletId, transferDto.amount);
-    return { message: 'Transfer queued successfully' };
+   const response = await this.transactionsService.queueTransfer(fromWalletId, toWalletId, transferDto.amount);
+    return { message: 'Transfer queued successfully', ...response };
   }
 }
