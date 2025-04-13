@@ -99,15 +99,17 @@ export class WalletsController {
       },
     },
   })
-  @ApiResponse({ status: 200, description: 'Deposit successful.' })
+  @ApiResponse({ status: 200, description: 'Deposit queued successfully.' })
   @ApiResponse({ status: 404, description: 'Wallet not found.' })
   async deposit(
     @Param('id') id: string,
     @Body() updateBalanceDto: UpdateBalanceDto,
   ) {
-    const response = await this.transactionsService.queueDeposit(id, updateBalanceDto.amount);
-     return { message: 'Deposit queued successfully', ...response };
-    }
+    // Generate idempotency key
+    const idempotencyKey = `deposit_${id}_${Math.floor(Date.now() / 10000)}`;
+    const response = await this.transactionsService.queueDeposit(id, updateBalanceDto.amount, idempotencyKey);
+    return { ...response };
+  }
 
 
   @Post(':id/withdraw')
@@ -130,15 +132,17 @@ export class WalletsController {
       },
     },
   })
-  @ApiResponse({ status: 200, description: 'Withdrawal successful.' })
+  @ApiResponse({ status: 200, description: 'Withdrawal queued successfully.' })
   @ApiResponse({ status: 400, description: 'Insufficient balance.' })
   @ApiResponse({ status: 404, description: 'Wallet not found.' })
   async withdraw(
     @Param('id') id: string,
     @Body() updateBalanceDto: UpdateBalanceDto,
   ) {
-   const response = await this.transactionsService.queueWithdraw(id, updateBalanceDto.amount);
-    return { message: 'Withdrawal queued successfully', ...response };
+    // Generate idempotency key
+    const idempotencyKey = `wtd_${id.substring(2,8)}${updateBalanceDto.amount}_${Math.floor(Date.now() / 10000)}`;
+    const response = await this.transactionsService.queueWithdraw(id, updateBalanceDto.amount, idempotencyKey);
+    return {  ...response };
   }
 
   @Post(':fromWalletId/transfer/:toWalletId')
@@ -178,8 +182,9 @@ export class WalletsController {
     
 
     //idempotency key with 15 seconds window
-    const   idempotencyKey = `txn_${Math.floor(Date.now() / 10000)}}`; 
+    const   idempotencyKey = `txn_${toWalletId.substring(2,8)}${transferDto.amount}_${Math.floor(Date.now() / 10000)}_${fromWalletId.substring(2,8)}`; 
    const response = await this.transactionsService.queueTransfer(fromWalletId, toWalletId, transferDto.amount, idempotencyKey);
-    return { message: 'Transfer queued successfully', ...response };
+    const { message, ...rest } = response;
+    return { message, ...rest };
   }
 }

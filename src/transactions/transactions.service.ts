@@ -82,7 +82,7 @@ export class TransactionsService {
     // Check Redis cache
     const cachedTransactions = await this.redisService.get(cacheKey);
     if (cachedTransactions) {
-      console.log(`Cache hit for wallet transactions: ${walletId}`);
+      console.log(`returning result from cache: ${walletId}`);
       return JSON.parse(cachedTransactions);
     }
 
@@ -94,13 +94,12 @@ export class TransactionsService {
         { fromWallet: { id: walletId } }, // Outgoing transactions
         { toWallet: { id: walletId } },  // Incoming transactions
       ],
-      relations: ['fromWallet', 'toWallet'],
       order: { createdAt: 'DESC' }, // Ensure 'createdAt' exists in the Transaction entity
       skip: offset,
       take: limit,
     });
 
-    const result = { data, total };
+    const result = { data, total, currentPage:page };
 
     // Cache the result
     await this.redisService.set(cacheKey, JSON.stringify(result), 3600); // Cache for 1 hour
@@ -109,20 +108,42 @@ export class TransactionsService {
     return result;
   }
 
-async queueTransfer(fromWalletId: string, toWalletId: string, amount: number,transactionId:string): Promise<{ jobId: string | number }> {
-    const job = await this.transactionQueue.add('transfer', { fromWalletId, toWalletId, amount,transactionId });
-    return { jobId: job.id }; // job.id can be a string or a number
+async queueTransfer(fromWalletId: string, toWalletId: string, amount: number, transactionId: string): Promise<{ message: string; jobId?: string | number }> {
+  // Check if the transaction already exists
+  const existingTransaction = await this.txRepo.findOne({ where: { transactionId } });
+  console.log(existingTransaction, "existing")
+  
+  if (existingTransaction) {
+    return { message: 'Duplicate transaction, please try again after some time' };
+  }
+
+  // Queue the job if the transaction does not exist
+  const job = await this.transactionQueue.add('transfer', { fromWalletId, toWalletId, amount, transactionId });
+  return { message: 'Transfer queued successfully', jobId: job.id };
 }
 
-  async queueWithdraw(walletId: string, amount: number): Promise<{ jobId: string | number }> {
-    
-const job = await this.transactionQueue.add('withdraw', { walletId, amount });
-return { jobId: job.id };  
+async queueWithdraw(walletId: string, amount: number, transactionId: string): Promise<{ message: string; jobId?: string | number }> {
+  // Check if the transaction already exists
+  const existingTransaction = await this.txRepo.findOne({ where: { transactionId } });
+  if (existingTransaction) {
+    return { message: 'Duplicate transaction, please try again in 15 seconds' };
+  }
+
+  // Queue the job if the transaction does not exist
+  const job = await this.transactionQueue.add('withdraw', { walletId, amount, transactionId });
+  return { message: 'Withdrawal queued successfully', jobId: job.id };
 }
 
-  async queueDeposit(walletId: string, amount: number): Promise<{ jobId: string | number }> {
-   const job =  await this.transactionQueue.add('deposit', { walletId, amount });
-   return { jobId: job.id };
+async queueDeposit(walletId: string, amount: number, transactionId: string): Promise<{ message: string; jobId?: string | number }> {
+  // Check if the transaction already exists
+  const existingTransaction = await this.txRepo.findOne({ where: { transactionId } });
+  if (existingTransaction) {
+    return { message: 'Duplicate transaction, please try again in some seconds' };
+  }
+
+  // Queue the job if the transaction does not exist
+  const job = await this.transactionQueue.add('deposit', { walletId, amount, transactionId });
+  return { message: 'Deposit queued successfully', jobId: job.id };
 }
 
 async getJobById(id: string): Promise<any> {
