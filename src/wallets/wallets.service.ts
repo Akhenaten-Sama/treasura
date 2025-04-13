@@ -6,6 +6,7 @@ import { UsersService } from '../users/users.service';
 import { TransactionType, TransactionStatus } from '../transactions/transaction.entity';
 import { TransactionsService } from '../transactions/transactions.service';
 import { validate as isUuid } from 'uuid';
+import { RedisService } from '../cache/redis.service';
 
 @Injectable()
 export class WalletsService {
@@ -15,6 +16,7 @@ export class WalletsService {
     private readonly usersService: UsersService,
     private readonly dataSource: DataSource, // Inject DataSource for transactions
     private readonly transactionsService: TransactionsService, // Inject TransactionsService
+    private readonly redisService: RedisService, // Inject RedisService
   ) {}
 
   // Helper method to validate UUID
@@ -35,10 +37,25 @@ export class WalletsService {
 
   async findOne(id: string): Promise<Wallet> {
     this.validateUUID(id, 'Wallet ID'); // Validate UUID
+
+    // Check Redis cache
+    const cacheKey = `wallet:${id}`;
+    const cachedWallet = await this.redisService.get(cacheKey);
+    if (cachedWallet) {
+      console.log(`Cache hit for wallet ID: ${id}`);
+      return JSON.parse(cachedWallet);
+    }
+
+    // Fetch from database if not in cache
     const wallet = await this.walletRepository.findOne({ where: { id }, relations: ['user'] });
     if (!wallet) {
       throw new NotFoundException(`Wallet with ID ${id} not found`);
     }
+
+    // Cache the result
+    await this.redisService.set(cacheKey, JSON.stringify(wallet), 3600); // Cache for 1 hour
+    console.log(`Cache set for wallet ID: ${id}`);
+
     return wallet;
   }
 

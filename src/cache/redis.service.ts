@@ -1,23 +1,27 @@
 // src/cache/redis.service.ts
-import { Injectable, OnModuleInit } from '@nestjs/common';
-import { createClient, RedisClientType } from 'redis';
+import { Injectable } from '@nestjs/common';
+import Redis from 'ioredis';
 
 @Injectable()
-export class RedisService implements OnModuleInit {
-  private client: RedisClientType;
+export class RedisService {
+  private readonly redis: Redis;
 
-  async onModuleInit() {
-    this.client = createClient({
-      url: process.env.REDIS_URL || 'redis://localhost:6379',
+  constructor() {
+    this.redis = new Redis({
+      host: 'localhost', // Redis host
+      port: 6379,        // Redis port
     });
-    await this.client.connect();
   }
 
-  async ping(): Promise<string> {
-    return this.client.ping();
+  async get(key: string): Promise<string | null> {
+    return this.redis.get(key);
   }
 
-  getClient(): RedisClientType {
-    return this.client;
+  async set(key: string, value: string, ttl: number): Promise<void> {
+    await this.redis.set(key, value, 'EX', ttl); // Set with expiration
+  }
+
+  async del(key: string): Promise<void> {
+    await this.redis.del(key);
   }
 }
