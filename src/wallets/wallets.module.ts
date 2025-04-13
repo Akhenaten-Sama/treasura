@@ -6,12 +6,14 @@ import { Wallet } from './wallets.entity';
 import { UsersModule } from '../users/users.module'; // Import UsersModule
 import { AuthModule } from '../auth/auth.module';
 import { TransactionsModule } from '../transactions/transactions.module';
+import { CacheModule } from 'src/cache/cache.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Wallet]),
     UsersModule,
     forwardRef(()=>TransactionsModule),
+    CacheModule,
     AuthModule // Add UsersModule here
   ],
   providers: [WalletsService],

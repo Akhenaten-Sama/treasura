@@ -176,8 +176,9 @@ export class WalletsController {
     @Body() transferDto: TransferDto,
   ) {
     
-    const   idempotencyKey = `key_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
+    //idempotency key with 15 seconds window
+    const   idempotencyKey = `txn_${Math.floor(Date.now() / 10000)}}`; 
    const response = await this.transactionsService.queueTransfer(fromWalletId, toWalletId, transferDto.amount, idempotencyKey);
     return { message: 'Transfer queued successfully', ...response };
   }

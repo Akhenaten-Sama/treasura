@@ -6,8 +6,7 @@ import { TransactionsController } from './transactions.controller';
 import { WalletsModule } from '../wallets/wallets.module';
 import { BullModule } from '@nestjs/bull';
 import { TransferProcessor } from './transfer.processor';
-import { BullConfigService } from '../config/bull.config';
-
+import { CacheModule } from '../cache/cache.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Transaction]),
@@ -15,6 +14,7 @@ import { BullConfigService } from '../config/bull.config';
     BullModule.registerQueue({
       name: 'transactionQueue',
     }),
+    CacheModule,
   ],
   providers: [TransactionsService, TransferProcessor],
   controllers: [TransactionsController],
