@@ -1,20 +1,54 @@
 version: '3.8'
-services:
-  redis:
-    image: redis:latest
-    container_name: redis
-    ports:
-      - "6379:6379"
 
-  nestjs:
+services:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: nestjs_app
+    container_name: treasura_app
     ports:
-      - "3001:3001"
-    depends_on:
-      - redis
+      - "3000:3000" # Map container port 3000 to host port 3000
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_NAME: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - treasura_network
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432" # Expose PostgreSQL to the host machine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - treasura_network
+
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379" # Expose Redis to the host machine
+    networks:
+      - treasura_network
+
+volumes:
+  postgres_data:
+
+networks:
+  treasura_network:
+    driver: bridge

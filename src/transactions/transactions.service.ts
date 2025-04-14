@@ -196,6 +196,11 @@ export class TransactionsService {
 //    Queues
 async queueTransfer(fromWalletId: string, toWalletId: string, amount: number, transactionId: string): Promise<{ message: string; jobId?: string | number }> {
   // Check if the transaction already exists
+
+  if(fromWalletId === toWalletId) {
+    return { message: 'Source and destination wallets cannot be the same' };
+
+  }
   const existingTransaction = await this.txRepo.findOne({ where: { transactionId } });
   console.log(existingTransaction, "existing")
   

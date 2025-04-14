@@ -26,11 +26,19 @@ export class WalletsService {
     }
   }
 
-  async create(email: string, balance: number = 0): Promise<Wallet> {
+  async create(email: string,): Promise<Wallet> {
     const user = await this.usersService.findByEmail(email);
+    console.log(user)
+
+    // Check if the user already has a wallet
+    const existingWallet = await this.walletRepository.findOne({ where: { user: { id: user.id } }, relations: ['user'] });
+    if (existingWallet) {
+       return existingWallet
+    }
+
     const wallet = this.walletRepository.create({
       user,
-      balance,
+     
     });
     return this.walletRepository.save(wallet);
   }
@@ -102,6 +110,10 @@ export class WalletsService {
   }
 
   async transfer(fromWalletId: string, toWalletId: string, amount: number): Promise<void> {
+
+    if (fromWalletId === toWalletId) {
+      throw new BadRequestException('Source and destination wallets cannot be the same');
+    }
     this.validateUUID(fromWalletId, 'Source Wallet ID'); // Validate UUID
     this.validateUUID(toWalletId, 'Destination Wallet ID'); // Validate UUID
 
