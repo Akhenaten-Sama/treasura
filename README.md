@@ -37,7 +37,6 @@
 
 ### 8. Caching
 - **Read-Through Cache**: Implemented read-through caching to reduce database load.
-- **Write-Back Cache**: Used write-back caching for non-critical updates.
 - **Cache Invalidation**: Ensured proper cache invalidation strategies to maintain consistency.
 
 By combining these techniques, the system achieves low latency, idempotency, atomicity, and safe handling of concurrent withdrawals while preventing overdraws and deadlocks.

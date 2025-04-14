@@ -62,18 +62,11 @@ export class WalletsService {
   async updateBalance(id: string, amount: number): Promise<Wallet> {
     this.validateUUID(id, 'Wallet ID'); // Validate UUID
 
-    // Validate that amount is a valid number
-    if (isNaN(amount) || typeof amount !== 'number') {
-      throw new BadRequestException('Amount must be a valid number');
-    }
-
-    // Start a transaction
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // Lock the wallet row for update
       const wallet = await queryRunner.manager.findOne(Wallet, {
         where: { id },
         lock: { mode: 'pessimistic_write' },
@@ -83,11 +76,9 @@ export class WalletsService {
         throw new NotFoundException(`Wallet with ID ${id} not found`);
       }
 
-      // Perform balance update
       const currentBalance = parseFloat(wallet.balance.toString());
       const newBalance = currentBalance + amount;
 
-      // Prevent overdraft
       if (newBalance < 0) {
         throw new BadRequestException('Insufficient balance');
       }
@@ -95,15 +86,17 @@ export class WalletsService {
       wallet.balance = parseFloat(newBalance.toFixed(2));
       await queryRunner.manager.save(wallet);
 
-      // Commit the transaction
+      // Invalidate cache
+      const cacheKey = `wallet:${id}`;
+      await this.redisService.del(cacheKey);
+      console.log(`Cache invalidated for wallet ID: ${id}`);
+
       await queryRunner.commitTransaction();
       return wallet;
     } catch (error) {
-      // Rollback the transaction in case of an error
       await queryRunner.rollbackTransaction();
       throw error;
     } finally {
-      // Release the query runner
       await queryRunner.release();
     }
   }

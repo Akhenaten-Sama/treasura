@@ -8,6 +8,8 @@ import { Wallet } from '../wallets/wallets.entity';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue, Job } from 'bull';
 import { RedisService } from '../cache/redis.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class TransactionsService {
@@ -19,18 +21,16 @@ export class TransactionsService {
     private readonly redisService: RedisService, // Inject RedisService
   ) {}
 
+
+  // methods
   async createTransaction(dto: CreateTransactionDto): Promise<Transaction> {
-    // Check for existing transaction with the same idempotencyKey
     const existingTransaction = await this.txRepo.findOne({ where: { transactionId: dto.transactionId } });
     if (existingTransaction) {
       throw new ConflictException('Transaction with the same idempotencyKey already exists');
     }
 
-    const transaction = this.txRepo.create({
-      ...dto,
-    });
+    const transaction = this.txRepo.create({ ...dto });
 
-    // Fetch and set the fromWallet if fromWalletId is provided
     if (dto.fromWalletId) {
       const fromWallet = await this.txRepo.manager.findOne(Wallet, { where: { id: dto.fromWalletId } });
       if (!fromWallet) {
@@ -39,7 +39,6 @@ export class TransactionsService {
       transaction.fromWallet = fromWallet;
     }
 
-    // Fetch and set the toWallet if toWalletId is provided
     if (dto.toWalletId) {
       const toWallet = await this.txRepo.manager.findOne(Wallet, { where: { id: dto.toWalletId } });
       if (!toWallet) {
@@ -48,7 +47,22 @@ export class TransactionsService {
       transaction.toWallet = toWallet;
     }
 
-    return this.txRepo.save(transaction);
+    const savedTransaction = await this.txRepo.save(transaction);
+
+    // Invalidate cache for the wallets involved in the transaction
+    if (dto.fromWalletId) {
+      const fromWalletCacheKey = `transactions:wallet:${dto.fromWalletId}:*`;
+      await this.redisService.del(fromWalletCacheKey);
+      console.log(`Cache invalidated for wallet transactions: ${dto.fromWalletId}`);
+    }
+
+    if (dto.toWalletId) {
+      const toWalletCacheKey = `transactions:wallet:${dto.toWalletId}:*`;
+      await this.redisService.del(toWalletCacheKey);
+      console.log(`Cache invalidated for wallet transactions: ${dto.toWalletId}`);
+    }
+
+    return savedTransaction;
   }
 
   // Find a transaction by its ID with caching
@@ -108,6 +122,78 @@ export class TransactionsService {
     return result;
   }
 
+  async getJobById(id: string): Promise<any> {
+    const job = await this.transactionQueue.getJob(id);
+    if (!job) {
+      throw new NotFoundException(`Job with ID ${id} not found`);
+    }
+  
+    return {
+      jobId: job.id,
+      type: job.name,
+      data: job.data,
+      attemptsMade: job.attemptsMade,
+      status: await job.getState(), 
+      result: await job.returnvalue, 
+      failedReason: job.failedReason, 
+     
+    };
+  }
+  
+  async exportBatchTransactions(walletId: string, batchSize: number = 100): Promise<string> {
+    let offset = 0;
+    let hasMore = true;
+  
+    const exportsDir = path.join(__dirname, '../../exports');
+    const fileName = `transactions_${walletId}_${Date.now()}.csv`;
+    const filePath = path.join(exportsDir, fileName);
+  
+    // Ensure the exports directory exists
+    if (!fs.existsSync(exportsDir)) {
+      fs.mkdirSync(exportsDir, { recursive: true });
+      console.log(`Created directory: ${exportsDir}`);
+    }
+  
+    const writeStream = fs.createWriteStream(filePath);
+  
+    // Write CSV headers
+    writeStream.write('Transaction ID,From Wallet,To Wallet,Amount,Type,Status,Created At\n');
+  
+    while (hasMore) {
+      const transactions = await this.txRepo.find({
+        where: [
+          { fromWallet: { id: walletId } },
+          { toWallet: { id: walletId } },
+        ],
+        order: { createdAt: 'DESC' },
+        skip: offset,
+        take: batchSize,
+      });
+  
+      if (transactions.length === 0) {
+        hasMore = false;
+        break;
+      }
+  
+      // Write transactions to the file
+      for (const tx of transactions) {
+        writeStream.write(
+          `${tx.transactionId},${tx.fromWallet?.id || 'N/A'},${tx.toWallet?.id || 'N/A'},${tx.amount},${tx.type},${tx.status},${tx.createdAt}\n`,
+        );
+      }
+  
+      offset += batchSize;
+    }
+  
+    writeStream.end();
+    console.log(`Transactions exported to ${filePath}`);
+  
+    return `/exports/${fileName}`; // Return the relative file path
+  }
+  
+
+
+//    Queues
 async queueTransfer(fromWalletId: string, toWalletId: string, amount: number, transactionId: string): Promise<{ message: string; jobId?: string | number }> {
   // Check if the transaction already exists
   const existingTransaction = await this.txRepo.findOne({ where: { transactionId } });
@@ -146,22 +232,12 @@ async queueDeposit(walletId: string, amount: number, transactionId: string): Pro
   return { message: 'Deposit queued successfully', jobId: job.id };
 }
 
-async getJobById(id: string): Promise<any> {
-  const job = await this.transactionQueue.getJob(id);
-  if (!job) {
-    throw new NotFoundException(`Job with ID ${id} not found`);
-  }
-
-  return {
-    jobId: job.id,
-    type: job.name,
-    data: job.data,
-    attemptsMade: job.attemptsMade,
-    status: await job.getState(), 
-    result: await job.returnvalue, 
-    failedReason: job.failedReason, 
-   
-  };
+async queueExportTransactions(walletId: string, batchSize: number = 100): Promise<{ jobId: string }> {
+    const job = await this.transactionQueue.add('exportTransactions', { walletId, batchSize });
+    return { jobId: job.id.toString() };
 }
+
+
+
   // Other methods for transaction management...
 }

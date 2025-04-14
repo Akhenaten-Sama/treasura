@@ -7,6 +7,7 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { Processor, Process } from '@nestjs/bull';
 import { Job } from 'bull';
 import { TransactionStatus, TransactionType } from './transaction.entity';
+import { RedisService } from 'src/cache/redis.service';
 
 @Processor('transactionQueue')
 @Injectable()
@@ -14,6 +15,7 @@ export class TransferProcessor {
   constructor(
     private readonly walletsService: WalletsService,
     private readonly transactionsService: TransactionsService,
+    private readonly redisService: RedisService, // Inject RedisService
   ) {}
 
   @Process('transfer')
@@ -21,12 +23,10 @@ export class TransferProcessor {
     const { fromWalletId, toWalletId, amount, transactionId } = job.data;
 
     try {
-      // Perform the transfer
-      const result = await this.walletsService.transfer(fromWalletId, toWalletId, amount,);
+      const result = await this.walletsService.transfer(fromWalletId, toWalletId, amount);
 
-      // Create a transaction record with SUCCESS status
       await this.transactionsService.createTransaction({
-      fromWalletId,
+        fromWalletId,
         toWalletId,
         amount,
         type: TransactionType.TRANSFER,
@@ -34,10 +34,13 @@ export class TransferProcessor {
         status: TransactionStatus.SUCCESS,
       });
 
-      console.log(`Transfer processed successfully: ${job.id}`, result);
+      // Invalidate cache for both wallets
+      await this.redisService.del(`wallet:${fromWalletId}`);
+      await this.redisService.del(`wallet:${toWalletId}`);
+      console.log(`Cache invalidated for wallets: ${fromWalletId}, ${toWalletId}`);
+
       return { message: 'Transfer successful', result };
     } catch (error) {
-      // Create a transaction record with FAILED status
       await this.transactionsService.createTransaction({
         fromWalletId,
         toWalletId,
@@ -47,8 +50,7 @@ export class TransferProcessor {
         status: TransactionStatus.FAILED,
       });
 
-      console.error(`Failed to process transfer: ${job.id}`, error);
-      throw error; // This will mark the job as failed
+      throw error;
     }
   }
 
@@ -119,5 +121,21 @@ export class TransferProcessor {
       console.error(`Failed to process deposit: ${job.id}`, error);
       throw error; // This will mark the job as failed
     }
+  }
+
+  @Process('exportTransactions')
+  async handleExportTransactions(job: Job): Promise<{ message: string; result: any }> {
+    const { walletId, batchSize } = job.data;
+
+    try{
+        console.log(`Starting export for wallet: ${walletId}`);
+   const result =    await this.transactionsService.exportBatchTransactions(walletId, batchSize);    
+   console.log(`Export completed for wallet: ${walletId}`);
+   return { message: 'Deposit successful', result };
+    }catch(error){
+        console.error(`Failed to process deposit: ${job.id}`, error);
+        throw error; // This will mark the job as failed
+    }
+    
   }
 }

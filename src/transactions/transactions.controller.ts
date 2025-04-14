@@ -97,5 +97,30 @@ export class TransactionsController {
     return job
   }
   
+  @Post('export/:walletId')
+  @ApiOperation({ summary: 'Queue export of transactions for a wallet in batches' })
+  @ApiParam({
+    name: 'walletId',
+    description: 'The ID of the wallet to export transactions for',
+    type: String,
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiQuery({
+    name: 'batchSize',
+    description: 'The number of transactions to process per batch',
+    type: Number,
+    required: false,
+    example: 100,
+  })
+  @ApiResponse({ status: 200, description: 'Export job queued successfully.' })
+  @ApiResponse({ status: 404, description: 'Wallet not found.' })
+  async queueExportTransactions(
+    @Param('walletId') walletId: string,
+    @Query('batchSize') batchSize: number = 100,
+  ): Promise<{ message: string; jobId: string }> {
+    const { jobId } = await this.transactionsService.queueExportTransactions(walletId, batchSize);
+    return { message: `Export job queued for wallet ID: ${walletId}`, jobId };
+  }
+  
   // Other endpoints for transaction management...
 }
