@@ -26,22 +26,18 @@ The link to the project is located [here](https://github.com/Akhenaten-Sama/trea
 
 - **Rate Limiting**: Implemented rate limiting to prevent abuse of the APIs.
 - **Pagination and Limits**: Handled large datasets with proper pagination and maximum limits.
-- **Timeouts**: Set appropriate timeouts to handle long-running requests gracefully.
+
 - **Concurrency Issues**: Addressed potential race conditions in concurrent API calls by allowing uo to 20 concurrent connections
 - **Error Responses**: Provided meaningful error messages and appropriate HTTP status codes.
-- **Data Consistency**: Ensured data integrity during partial failures or retries.
-- **Unsupported Methods**: Returned proper responses for unsupported HTTP methods.
-- **Edge Case Scenarios**: Tested scenarios like empty datasets, boundary values, and unexpected input types.
-- **Backward Compatibility**: Maintained compatibility with older API versions during updates.
-- **Cross-Origin Requests**: Configured CORS policies to allow or restrict access as needed.
-- **Security Vulnerabilities**: Addressed common vulnerabilities like SQL injection, XSS, and CSRF.
-- **File Uploads**: Validated file types, sizes, and content for upload endpoints.
-- **High Traffic**: Ensured APIs can handle spikes in traffic without degradation.
-- **Partial Updates**: Handled PATCH requests to update resources partially without overwriting other fields.
+- **Data Consistency**: Ensured data integrity during partial failures or retries with row locking and rollbacks.
+
+- **Edge Case Scenarios**: Tested scenarios like empty datasets, and unexpected input types.
+
+
 - **Idempotency**: Ensured repeated requests (e.g., retries) do not cause unintended side effects.
-- **Versioning**: Managed API versioning to support future changes without breaking existing clients.
+
 ### . Queues for Transaction APIs and Batching
-- **Job Queues**: Employed queues to handle transaction APIs and batch transaction lists efficiently.
+- **Job Queues**: Employed queues to handle transaction APIs and batch transaction lists efficiently with Bull.
 - **Job ID Generation**: Returned a unique job ID upon request submission.
 - **Result Querying**: Allowed clients to query the job results using the provided job ID.
 - **Asynchronous Processing**: Ensured non-blocking operations by processing transactions in the background.
