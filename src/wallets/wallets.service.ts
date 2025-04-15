@@ -26,14 +26,14 @@ export class WalletsService {
     }
   }
 
-  async create(email: string,): Promise<Wallet> {
-    const user = await this.usersService.findByEmail(email);
+  async create(email: string,): Promise<Wallet|{message:string,wallet:Wallet}> {
+    const user = await this.usersService.findByEmail(email.trim());
     console.log(user)
 
     // Check if the user already has a wallet
     const existingWallet = await this.walletRepository.findOne({ where: { user: { id: user.id } }, relations: ['user'] });
     if (existingWallet) {
-       return existingWallet
+       return {message:"wallet for user already exist", wallet:existingWallet}
     }
 
     const wallet = this.walletRepository.create({
@@ -44,7 +44,7 @@ export class WalletsService {
   }
 
   async findOne(id: string): Promise<Wallet> {
-    this.validateUUID(id, 'Wallet ID'); // Validate UUID
+    this.validateUUID(id.trim(), 'Wallet ID'); // Validate UUID
 
     // Check Redis cache
     const cacheKey = `wallet:${id}`;
@@ -55,7 +55,7 @@ export class WalletsService {
     }
 
     // Fetch from database if not in cache
-    const wallet = await this.walletRepository.findOne({ where: { id }, relations: ['user'] });
+    const wallet = await this.walletRepository.findOne({ where: { id:id.trim() }, relations: ['user'] });
     if (!wallet) {
       throw new NotFoundException(`Wallet with ID ${id} not found`);
     }
@@ -68,7 +68,7 @@ export class WalletsService {
   }
 
   async updateBalance(id: string, amount: number): Promise<Wallet> {
-    this.validateUUID(id, 'Wallet ID'); // Validate UUID
+    this.validateUUID(id.trim(), 'Wallet ID'); // Validate UUID
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -76,7 +76,7 @@ export class WalletsService {
 
     try {
       const wallet = await queryRunner.manager.findOne(Wallet, {
-        where: { id },
+        where: { id: id.trim() },
         lock: { mode: 'pessimistic_write' },
       });
 
@@ -114,8 +114,8 @@ export class WalletsService {
     if (fromWalletId === toWalletId) {
       throw new BadRequestException('Source and destination wallets cannot be the same');
     }
-    this.validateUUID(fromWalletId, 'Source Wallet ID'); // Validate UUID
-    this.validateUUID(toWalletId, 'Destination Wallet ID'); // Validate UUID
+    this.validateUUID(fromWalletId.trim(), 'Source Wallet ID'); // Validate UUID
+    this.validateUUID(toWalletId.trim(), 'Destination Wallet ID'); // Validate UUID
 
     if (amount <= 0) {
       throw new BadRequestException('Transfer amount must be greater than zero');
@@ -128,7 +128,7 @@ export class WalletsService {
     try {
       // Lock the source wallet
       const sourceWallet = await queryRunner.manager.findOne(Wallet, {
-        where: { id: fromWalletId },
+        where: { id: fromWalletId.trim() },
         lock: { mode: 'pessimistic_write' },
       });
 
@@ -138,7 +138,7 @@ export class WalletsService {
 
       // Lock the destination wallet
       const destWallet = await queryRunner.manager.findOne(Wallet, {
-        where: { id: toWalletId },
+        where: { id: toWalletId.trim() },
         lock: { mode: 'pessimistic_write' },
       });
 

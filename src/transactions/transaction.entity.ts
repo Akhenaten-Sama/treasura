@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
+import { Entity, Index,PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
 import { Wallet } from '../wallets/wallets.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -15,6 +15,7 @@ export enum TransactionType {
 }
 
 @Entity('transactions')
+@Index(['fromWallet', 'toWallet', 'transactionId'])
 export class Transaction {
   @ApiProperty({ description: 'Unique identifier for the transaction', example: '123e4567-e89b-12d3-a456-426614174000' })
   @PrimaryGeneratedColumn('uuid')

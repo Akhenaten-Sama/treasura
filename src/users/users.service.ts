@@ -12,7 +12,12 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const user = this.userRepository.create(createUserDto);
+    // Trim trailing spaces from all string properties in createUserDto
+    const sanitizedDto = {
+      ...createUserDto,
+      email: createUserDto.email?.trim(),
+    };
+    const user = this.userRepository.create(sanitizedDto);
     return this.userRepository.save(user);
   }
 
@@ -21,9 +26,11 @@ export class UsersService {
   }
 
   async findByEmail(email: string): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { email } });
+    // Trim trailing spaces from the email input
+    const sanitizedEmail = email.trim();
+    const user = await this.userRepository.findOne({ where: { email: sanitizedEmail } });
     if (!user) {
-      throw new NotFoundException(`User with email ${email} not found`);
+      throw new NotFoundException(`User with email ${sanitizedEmail} not found`);
     }
     return user;
   }
