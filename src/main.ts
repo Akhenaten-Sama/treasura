@@ -23,6 +23,6 @@ async function bootstrap() {
   // Serve the exports directory as static files
   app.use('/exports', express.static(path.join(__dirname, '../exports')));
 
-  await app.listen( 3001);
+  await app.listen( 3000);
 }
 bootstrap();

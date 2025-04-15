@@ -8,8 +8,8 @@ export class RedisService {
 
   constructor() {
     this.redis = new Redis({
-      host: 'localhost',
-      port: 6379,        
+      host: process.env.REDIS_HOST || 'localhost', // Use REDIS_HOST environment variable
+      port: parseInt(process.env.REDIS_PORT || '6379', 10), // Use REDIS_PORT environment variable
     });
   }
 

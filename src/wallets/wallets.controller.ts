@@ -80,7 +80,7 @@ export class WalletsController {
 //   }
 
   @Post(':id/deposit')
-  @ApiOperation({ summary: 'Deposit money into a wallet' }) // Describe the purpose of the endpoint
+  @ApiOperation({ summary: 'Deposit money into a wallet. The endpoint queues the request and returns a job id that can be queried via transactions/job/:id' }) // Describe the purpose of the endpoint
   @ApiParam({
     name: 'id',
     description: 'The ID of the wallet to deposit into',
@@ -113,7 +113,7 @@ export class WalletsController {
 
 
   @Post(':id/withdraw')
-  @ApiOperation({ summary: 'Withdraw money from a wallet' }) // Describe the purpose of the endpoint
+  @ApiOperation({ summary: 'Withdraw money from a wallet. The endpoint queues the request and returns a job id that can be queried via transactions/job/:id' }) // Describe the purpose of the endpoint
   @ApiParam({
     name: 'id',
     description: 'The ID of the wallet to withdraw from',
@@ -146,7 +146,7 @@ export class WalletsController {
   }
 
   @Post(':fromWalletId/transfer/:toWalletId')
-  @ApiOperation({ summary: 'Transfer money between wallets' })
+  @ApiOperation({ summary: 'Transfer money between wallets. The endpoint queues the request and returns a job id that can be queried via transactions/job/:id' })
   @ApiParam({
     name: 'fromWalletId',
     description: 'The ID of the wallet to transfer from',

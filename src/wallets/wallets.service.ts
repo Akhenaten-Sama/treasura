@@ -103,6 +103,11 @@ export class WalletsService {
       return wallet;
     } catch (error) {
       await queryRunner.rollbackTransaction();
+
+      if (error.name === 'QueryFailedError' && error.message.includes('invalid input syntax for type uuid')) {
+        throw new BadRequestException('Invalid UUID format provided');
+      }
+
       throw error;
     } finally {
       await queryRunner.release();
@@ -174,6 +179,10 @@ export class WalletsService {
       await queryRunner.commitTransaction();
     } catch (error) {
       await queryRunner.rollbackTransaction();
+      if (error.name === 'QueryFailedError' && error.message.includes('invalid input syntax for type uuid')) {
+        throw new BadRequestException('Invalid UUID format provided');
+      }
+
       throw error;
     } finally {
       await queryRunner.release();

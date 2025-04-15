@@ -10,6 +10,7 @@ import { Queue, Job } from 'bull';
 import { RedisService } from '../cache/redis.service';
 import * as fs from 'fs';
 import * as path from 'path';
+import { validate as isUUID } from 'uuid';
 
 @Injectable()
 export class TransactionsService {
@@ -147,7 +148,10 @@ export class TransactionsService {
     const exportsDir = path.join(__dirname, '../../exports');
     const fileName = `transactions_${walletId}_${Date.now()}.csv`;
     const filePath = path.join(exportsDir, fileName);
-  
+
+    // Generate a full URL for the exported file
+    const baseUrl = process.env.BASE_URL || 'http://localhost:3000'; // Replace with your actual base URL
+    const fileUrl = `${baseUrl}/exports/${fileName}`;
     // Ensure the exports directory exists
     if (!fs.existsSync(exportsDir)) {
       fs.mkdirSync(exportsDir, { recursive: true });
@@ -188,24 +192,57 @@ export class TransactionsService {
     writeStream.end();
     console.log(`Transactions exported to ${filePath}`);
   
-    return `/exports/${fileName}`; // Return the relative file path
+    return `${fileUrl}`; // Return the relative file path
   }
   
 
 
 //    Queues
 async queueTransfer(fromWalletId: string, toWalletId: string, amount: number, transactionId: string): Promise<{ message: string; jobId?: string | number }> {
-  // Check if the transaction already exists
-
-  if(fromWalletId === toWalletId) {
-    return { message: 'Source and destination wallets cannot be the same' };
-
+  // Validate wallet IDs
+  if (!isUUID(fromWalletId) || !isUUID(toWalletId)) {
+    throw new BadRequestException({
+      statusCode: 400,
+      message: 'Invalid wallet ID(s). Both source and destination wallet IDs must be valid UUIDs',
+    });
   }
+
+  // Check if the transaction already exists
+  if (fromWalletId === toWalletId) {
+    throw new BadRequestException('Source and destination wallets cannot be the same');
+  }
+
   const existingTransaction = await this.txRepo.findOne({ where: { transactionId } });
-  console.log(existingTransaction, "existing")
-  
   if (existingTransaction) {
-    return { message: 'Duplicate transaction, please try again after some time' };
+    throw new ConflictException('Duplicate transaction, please try again after some time');
+  }
+
+  // Prevent overdraft
+ 
+  // Check if source wallet exists
+  const fromWallet = await this.txRepo.manager.findOne(Wallet, { where: { id: fromWalletId } });
+  if (!fromWallet) {
+    throw new NotFoundException({
+      statusCode: 404,
+      message: `Source wallet with ID ${fromWalletId} does not exist`,
+    });
+  }
+
+  const OriginWallet = await this.txRepo.manager.findOne(Wallet, { where: { id: fromWalletId } });
+  if (!OriginWallet || OriginWallet.balance < amount) {
+    throw new BadRequestException({
+      statusCode: 400,
+      message: 'Insufficient balance to complete the transfer',
+    });
+  }
+
+  // Check if destination wallet exists
+  const toWallet = await this.txRepo.manager.findOne(Wallet, { where: { id: toWalletId } });
+  if (!toWallet) {
+    throw new NotFoundException({
+      statusCode: 404,
+      message: `Destination wallet with ID ${toWalletId} does not exist`,
+    });
   }
 
   // Queue the job if the transaction does not exist
@@ -217,10 +254,21 @@ async queueWithdraw(walletId: string, amount: number, transactionId: string): Pr
   // Check if the transaction already exists
   const existingTransaction = await this.txRepo.findOne({ where: { transactionId } });
   if (existingTransaction) {
-    return { message: 'Duplicate transaction, please try again in 15 seconds' };
+    throw new ConflictException('Duplicate transaction detected. Please try again after some time.');
   }
 
-  // Queue the job if the transaction does not exist
+  // Check if the wallet exists
+  const wallet = await this.txRepo.manager.findOne(Wallet, { where: { id: walletId } });
+  if (!wallet) {
+    throw new NotFoundException(`Wallet with ID ${walletId} does not exist`);
+  }
+
+  // Prevent overdraft
+  if (wallet.balance < amount) {
+    throw new BadRequestException('Insufficient balance to complete the withdrawal');
+  }
+
+  // Queue the job if the transaction does not exist and balance is sufficient
   const job = await this.transactionQueue.add('withdraw', { walletId, amount, transactionId });
   return { message: 'Withdrawal queued successfully', jobId: job.id };
 }
@@ -229,7 +277,7 @@ async queueDeposit(walletId: string, amount: number, transactionId: string): Pro
   // Check if the transaction already exists
   const existingTransaction = await this.txRepo.findOne({ where: { transactionId } });
   if (existingTransaction) {
-    return { message: 'Duplicate transaction, please try again in some seconds' };
+    throw new ConflictException('A transaction with the same ID already exists. Please try again later.');
   }
 
   // Queue the job if the transaction does not exist

@@ -19,10 +19,9 @@ import { Queue } from 'bull';
     WalletsModule,
     TransactionsModule,
     UsersModule,
-    AuthModule,
     BullModule.forRoot({
       redis: {
-        host: 'localhost', // Redis container name
+        host: 'redis', // Redis container name
         port: 6379,            // Redis default port
       },
     }),

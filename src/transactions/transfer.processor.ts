@@ -131,7 +131,7 @@ export class TransferProcessor {
         console.log(`Starting export for wallet: ${walletId}`);
    const result =    await this.transactionsService.exportBatchTransactions(walletId, batchSize);    
    console.log(`Export completed for wallet: ${walletId}`);
-   return { message: 'Deposit successful', result };
+   return { message: 'export successful, follo the link to view/get the csv', result };
     }catch(error){
         console.error(`Failed to process deposit: ${job.id}`, error);
         throw error; // This will mark the job as failed

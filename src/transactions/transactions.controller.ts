@@ -34,7 +34,7 @@ export class TransactionsController {
 //   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get transaction by ID' }) // Describe the purpose of the endpoint
+  @ApiOperation({ summary: 'Get single transaction by ID' }) // Describe the purpose of the endpoint
   @ApiParam({
     name: 'id',
     description: 'The ID of the transaction to retrieve',
@@ -44,11 +44,11 @@ export class TransactionsController {
   @ApiResponse({ status: 200, description: 'Transaction found.', type: Transaction })
   @ApiResponse({ status: 404, description: 'Transaction not found.' })
   async findOne(@Param('id') id: string): Promise<Transaction> {
-    return this.transactionsService.findById(id);
+    return this.transactionsService.findById(id.trim());
   }
 
   @Get('wallet/:walletId')
-  @ApiOperation({ summary: 'Get paginated transactions for a wallet' })
+  @ApiOperation({ summary: 'Get a paginated transactions list for a wallet' })
   @ApiParam({
     name: 'walletId',
     description: 'The ID of the wallet to retrieve transactions for',
@@ -80,7 +80,7 @@ export class TransactionsController {
   }
 
   @Get('job/:id')
-  @ApiOperation({ summary: 'Get job result by Job ID' })
+  @ApiOperation({ summary: 'Query all job id to get the results back' })
   @ApiParam({
     name: 'id',
     description: 'The ID of the job to retrieve',
@@ -90,7 +90,7 @@ export class TransactionsController {
   @ApiResponse({ status: 200, description: 'Job result retrieved successfully.' })
   @ApiResponse({ status: 404, description: 'Job not found.' })
   async getJobStatus(@Param('id') id: string): Promise<{ status: string }> {
-    const job = await this.transactionsService.getJobById(id);
+    const job = await this.transactionsService.getJobById(id.trim());
     if (!job) {
       throw new NotFoundException(`Job with ID ${id} not found`);
     }
@@ -98,7 +98,7 @@ export class TransactionsController {
   }
   
   @Post('export/:walletId')
-  @ApiOperation({ summary: 'Queue export of transactions for a wallet in batches' })
+  @ApiOperation({ summary: 'Queue export of batched transactions for a wallet in batches. The endoint returns a jobid.  Querying the job id returns a link to download the batched transactions as a csv file' })
   @ApiParam({
     name: 'walletId',
     description: 'The ID of the wallet to export transactions for',
@@ -118,7 +118,7 @@ export class TransactionsController {
     @Param('walletId') walletId: string,
     @Query('batchSize') batchSize: number = 100,
   ): Promise<{ message: string; jobId: string }> {
-    const { jobId } = await this.transactionsService.queueExportTransactions(walletId, batchSize);
+    const { jobId } = await this.transactionsService.queueExportTransactions(walletId.trim(), batchSize);
     return { message: `Export job queued for wallet ID: ${walletId}`, jobId };
   }
   

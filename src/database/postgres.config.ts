@@ -7,7 +7,7 @@ import { Transaction } from 'src/transactions/transaction.entity';
 
 export const typeOrmConfig = (configService: ConfigService): TypeOrmModuleOptions => ({
   type: 'postgres',
-  host: process.env.NODE_ENV === 'development' ? 'localhost' : 'postgres', // Use 'localhost' for local dev
+  host: configService.get<string>('DATABASE_HOST', 'localhost'), // Use 'postgres' for Docker
   port: configService.get<number>('DATABASE_PORT', 5432),
   username: configService.get<string>('DATABASE_USERNAME', 'postgres'),
   password: configService.get<string>('DATABASE_PASSWORD', 'postgres'),

@@ -20,7 +20,7 @@ services:
       - postgres
       - redis
     networks:
-      - treasura_network
+      - treasura
 
   postgres:
     image: postgres:15
@@ -35,7 +35,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - treasura_network
+      - treasura
 
   redis:
     image: redis:7
@@ -44,11 +44,12 @@ services:
     ports:
       - "6379:6379" # Expose Redis to the host machine
     networks:
-      - treasura_network
+      - treasura
 
 volumes:
   postgres_data:
 
 networks:
-  treasura_network:
+  treasura:
+    name: treasura # Explicitly set the network name
     driver: bridge
