@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { Wallet } from '../wallets/wallets.entity';
 import { User } from '../users/users.entity';
 import { Transaction } from 'src/transactions/transaction.entity';
-//import { Transaction } from '../transactions/entities/transaction.entity';
 
 export const typeOrmConfig = (configService: ConfigService): TypeOrmModuleOptions => ({
   type: 'postgres',
@@ -15,4 +14,11 @@ export const typeOrmConfig = (configService: ConfigService): TypeOrmModuleOption
   entities: [User, Wallet, Transaction],
   synchronize: true, // Set to false in production
   logging: true,
+  extra: {
+    max: 20, // Allow up to 50 concurrent connections
+    connectionTimeoutMillis: 5000, 
+    idleTimeoutMillis: 10000,
+    statement_timeout: 10000, 
+    query_timeout: 10000, 
+  },
 });

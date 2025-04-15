@@ -1,18 +1,45 @@
 """
 ## Treasura
+The link to the project is located [here](https://github.com/Akhenaten-Sama/treasura.git)
+
+# To start 
+
+- run "docker compose up --build".
+
+# To run tests
+- run "npm run tests"
 
 # Swagger Documentation:
 - All routes are documented using Swagger for easy API exploration and testing.
 
 - All routes are documented by swagger
 
-- http://localhost:3001/api/docs#/wallets/WalletsController_createWallet
+- http://localhost:3000/api/docs#/
 
 
 # Schemas:
--  schemas  are defined and documented in Swagger.
+-  schemas  are defined and documented in Swagger below .
 """
+### Edge Cases Considered in API Endpoints
 
+- **Invalid Input Handling**: Validated all inputs to ensure they meet required formats and constraints, trimmed parameters.
+
+- **Rate Limiting**: Implemented rate limiting to prevent abuse of the APIs.
+- **Pagination and Limits**: Handled large datasets with proper pagination and maximum limits.
+- **Timeouts**: Set appropriate timeouts to handle long-running requests gracefully.
+- **Concurrency Issues**: Addressed potential race conditions in concurrent API calls by allowing uo to 20 concurrent connections
+- **Error Responses**: Provided meaningful error messages and appropriate HTTP status codes.
+- **Data Consistency**: Ensured data integrity during partial failures or retries.
+- **Unsupported Methods**: Returned proper responses for unsupported HTTP methods.
+- **Edge Case Scenarios**: Tested scenarios like empty datasets, boundary values, and unexpected input types.
+- **Backward Compatibility**: Maintained compatibility with older API versions during updates.
+- **Cross-Origin Requests**: Configured CORS policies to allow or restrict access as needed.
+- **Security Vulnerabilities**: Addressed common vulnerabilities like SQL injection, XSS, and CSRF.
+- **File Uploads**: Validated file types, sizes, and content for upload endpoints.
+- **High Traffic**: Ensured APIs can handle spikes in traffic without degradation.
+- **Partial Updates**: Handled PATCH requests to update resources partially without overwriting other fields.
+- **Idempotency**: Ensured repeated requests (e.g., retries) do not cause unintended side effects.
+- **Versioning**: Managed API versioning to support future changes without breaking existing clients.
 ### . Queues for Transaction APIs and Batching
 - **Job Queues**: Employed queues to handle transaction APIs and batch transaction lists efficiently.
 - **Job ID Generation**: Returned a unique job ID upon request submission.
@@ -25,16 +52,15 @@
 ## Steps Taken
 
 ### 1. Low Latency
-- **Optimized Queries**: Used indexed columns and avoided full table scans in database queries.
-- **Caching**: Implemented caching mechanisms (Redis) for frequently accessed data.
+- **Optimized Queries**: Used indexed columns
+- **Caching**: Implemented caching mechanisms (Redis) for frequently accessed data like transactions and wallet reads
 - **Connection Pooling**: Configured database connection pooling to reduce connection overhead.
 
-- **Asynchronous Processing**: Leveraged asynchronous APIs and background workers for non-critical tasks.
+- **Asynchronous Processing**: Leveraged queues
 
 ### . Idempotency
 - **Unique Request Identifiers**: Generated unique request IDs to track and prevent duplicate operations.
 - **Idempotent Endpoints**: Designed APIs to handle repeated requests without side effects.
-- **State Validation**: Checked the current state of the resource before performing operations.
 
 ### . Ensuring Atomicity
 - **Database Transactions**: Wrapped critical operations in database transactions to ensure all-or-nothing execution.
@@ -51,7 +77,7 @@
 
 ### . Concurrency and Deadlock Prevention
 - **Deadlock Avoidance**: Ordered resource access consistently to prevent circular waits.
-- **Timeouts**: Set timeouts for locks to avoid indefinite blocking.
+
 - **Retry Logic**: Implemented retry mechanisms for failed transactions due to deadlocks.
 
 
